@@ -1,50 +1,51 @@
-module HtmlToUnicode (convert) where
+module HtmlToUnicode (unescape) where
 
-{-|
-@docs convert
+{-| This library allows to unescape named and numeric character references
+(e.g. &gt;, &#62;, &x3e;) to the corresponding unicode characters
+
+@docs unescape
 -}
 
 import String
 import Char
 import Dict
 import Result
+import ParseInt
 
 
-{-|
+{-| Converts all named and numeric character references (e.g. &gt;, &#62;, &x3e;)
+to the corresponding unicode characters.
 -}
-convert : String -> String
-convert string = string
-    |> String.toList -- convert to a list of chars
-    |> convertChars
-    |> List.map String.fromChar -- convert to a list of one character strings
+unescape : String -> String
+unescape string = string
+    |> String.toList -- converts to a list of chars
+    |> unescapeChars
+    |> List.map String.fromChar -- converts to a list of one character strings
     |> String.concat
 
 
-convertChars : List Char -> List Char
-convertChars list = parser list [] []
+unescapeChars : List Char -> List Char
+unescapeChars list = parser list [] []
 
 
--- first parameter: list of characters to parsed
--- second parameter: list of characters that are on hold to create the next character
--- third parameter: list of characters already parsed
--- return value: parsed list of characters
+{- first parameter: list of characters to parsed
+second parameter: list of characters that are on hold to create the next character
+third parameter: list of characters already parsed
+return value: parsed list of characters
+-}
 parser : List Char -> List Char -> List Char -> List Char
 parser charsToBeParsed charsOnParsing charsParsed =
-    let
-        maybeNextChar = List.head charsToBeParsed
-        tailToBeParsed = Maybe.withDefault [] ( List.tail charsToBeParsed )
-    in
-        case maybeNextChar of
-            Nothing -> charsParsed
-            Just nextChar ->
-                if nextChar == '&' then
-                    parser tailToBeParsed [ nextChar ] charsParsed
-                else if nextChar == ';' then
-                    parser tailToBeParsed [] ( List.append charsParsed ( unicodeConverter nextChar charsOnParsing ))
-                else if not ( List.isEmpty charsOnParsing ) then
-                    parser tailToBeParsed ( List.append charsOnParsing [ nextChar ] ) charsParsed
-                else
-                    parser tailToBeParsed [] ( List.append charsParsed [ nextChar ] )
+    case charsToBeParsed of
+        [] -> charsParsed
+        head::tail ->
+            if head == '&' then
+                parser tail [ head ] charsParsed
+            else if head == ';' then
+                parser tail [] ( List.append charsParsed ( unicodeConverter head charsOnParsing ))
+            else if not ( List.isEmpty charsOnParsing ) then
+                parser tail ( List.append charsOnParsing [ head ]) charsParsed
+            else
+                parser tail [] ( List.append charsParsed [ head ])
 
 
 unicodeConverter : Char -> List Char -> List Char
@@ -55,18 +56,24 @@ unicodeConverter post list =
             noAmpUnicodeConverter head post tail
 
 
--- first parameter: character to prepend if the conversion is not possible
--- second parameter : character to append if the conversion is not possible
--- third parameter: list of characters to convert
+{- first parameter: character to prepend if the conversion is not possible
+second parameter : character to append if the conversion is not possible
+third parameter: list of characters to convert
+-}
 noAmpUnicodeConverter : Char -> Char -> List Char -> List Char
 noAmpUnicodeConverter pre post list =
     case list of
         [] -> [ pre, post ]
-        head::tail ->
-            if head == '#' then
-                convertNumericalCode [ pre, head ] [ post ] tail
-            else
-                convertFriendlyCode [ pre ] [ post ] ( head::tail )
+        '#'::tail -> convertNumericalCode [ pre, '#' ] [ post ] tail
+        head::tail -> convertFriendlyCode [ pre ] [ post ] ( head::tail )
+
+
+convertNumericalCode : List Char -> List Char -> List Char -> List Char
+convertNumericalCode pre post list =
+    case list of
+        [] -> List.concat [ pre, post ]
+        'x'::tail -> convertHexadecimalCode ( List.append pre ['x']) post tail
+        list -> convertDecimalCode pre post list
 
 
 convertCode : ( String -> Maybe a ) -> ( a -> List Char ) -> List Char -> List Char -> List Char -> List Char
@@ -80,8 +87,12 @@ convertCode mayber lister pre post list =
             Just something -> lister something
 
 
-convertNumericalCode : List Char -> List Char -> List Char -> List Char
-convertNumericalCode =
+convertHexadecimalCode : List Char -> List Char -> List Char -> List Char
+convertHexadecimalCode = convertCode ( ParseInt.parseIntHex >> Result.toMaybe ) ( \int -> [ Char.fromCode int ])
+
+
+convertDecimalCode : List Char -> List Char -> List Char -> List Char
+convertDecimalCode =
     convertCode ( String.toInt >> Result.toMaybe ) ( \int -> [ Char.fromCode int ])
 
 
