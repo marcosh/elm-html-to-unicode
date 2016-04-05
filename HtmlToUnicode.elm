@@ -1,7 +1,9 @@
-module HtmlToUnicode (unescape) where
+module HtmlToUnicode (escape, unescape) where
 
 {-| This library allows to unescape named and numeric character references
 (e.g. &gt;, &#62;, &x3e;) to the corresponding unicode characters
+
+@docs escape
 
 @docs unescape
 -}
@@ -13,15 +15,61 @@ import Result
 import ParseInt
 
 
+{-| Escapes characters that could be used to inject XSS vectors.
+At the moment we escape &, <, >, ", ', `, , !, @, $, %, (, ), =, +, {, }, [ and ]
+-}
+escape : String -> String
+escape = convert escapeChars
+
+
 {-| Converts all named and numeric character references (e.g. &gt;, &#62;, &x3e;)
 to the corresponding unicode characters.
 -}
 unescape : String -> String
-unescape string = string
-    |> String.toList -- converts to a list of chars
-    |> unescapeChars
-    |> List.map String.fromChar -- converts to a list of one character strings
+unescape = convert unescapeChars
+
+
+convert : ( List Char -> List Char ) -> String -> String
+convert convertChars string = string
+    |> String.toList
+    |> convertChars
+    |> List.map String.fromChar
     |> String.concat
+
+
+escapeChars : List Char -> List Char
+escapeChars list = list
+    |> List.map escapeChar
+    |> List.concat
+
+
+escapeChar : Char -> List Char
+escapeChar char = Maybe.withDefault [ char ] ( Dict.get char escapeDictionary )
+
+
+escapeDictionary : Dict.Dict Char ( List Char )
+escapeDictionary =
+    Dict.fromList <| List.map ( \( char, string ) -> ( char, String.toList string ))
+        [ ( '&', "&amp;" )
+        , ( '<', "&lt;" )
+        , ( '>', "&gt;" )
+        , ( '"', "&quot;" )
+        , ( '\'', "&#39;" )
+        , ( '`', "&#96;" )
+        , ( ' ', "&#32;" )
+        , ( '!', "&#33;" )
+        , ( '@', "&#64;" )
+        , ( '$', "&#36;" )
+        , ( '%', "&#37;" )
+        , ( '(', "&#40;" )
+        , ( ')', "&#41;" )
+        , ( '=', "&#61;" )
+        , ( '+', "&#43;" )
+        , ( '{', "&#123;" )
+        , ( '}', "&#125;" )
+        , ( '[', "&#91;" )
+        , ( ']', "&#93;" )
+        ]
 
 
 unescapeChars : List Char -> List Char
@@ -106,7 +154,7 @@ convertFriendlyCodeToChar string = Dict.get string friendlyConverterDictionary
 
 
 friendlyConverterDictionary =
-    Dict.fromList <| List.map (\(a,b) -> (a, Char.fromCode b))
+    Dict.fromList <| List.map ( \( a, b ) -> ( a, Char.fromCode b ))
         [ ( "quot", 34 )
         , ( "amp", 38 )
         , ( "lt", 60 )
