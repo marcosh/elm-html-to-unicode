@@ -1,13 +1,13 @@
 {
     "version": "1.0.0",
-    "summary": "elm library to convert html characters to unicode",
+    "summary": "elm library to escape and unescape html",
     "repository": "https://github.com/marcosh/elm-html-to-unicode.git",
     "license": "MIT",
     "source-directories": [
-        "."
+        "src"
     ],
     "exposed-modules": [
-        "HtmlToUnicode"
+        "ElmEscapeHtml"
     ],
     "dependencies": {
         "elm-lang/core": "3.0.0 <= v < 4.0.0",

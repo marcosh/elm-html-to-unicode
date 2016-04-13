@@ -1,4 +1,4 @@
-module HtmlToUnicode (escape, unescape) where
+module ElmEscapeHtml (escape, unescape) where
 
 {-| This library allows to unescape named and numeric character references
 (e.g. &gt;, &#62;, &x3e;) to the corresponding unicode characters
