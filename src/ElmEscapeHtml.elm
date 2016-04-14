@@ -1,11 +1,11 @@
 module ElmEscapeHtml (escape, unescape) where
 
-{-| This library allows to unescape named and numeric character references
-(e.g. &gt;, &#62;, &x3e;) to the corresponding unicode characters
+{-| This library allows to escape html string and unescape named and numeric
+character references (e.g. &gt;, &#62;, &x3e;) to the corresponding unicode
+characters
 
-@docs escape
-
-@docs unescape
+#Definition
+@docs escape, unescape
 -}
 
 import String
@@ -15,20 +15,32 @@ import Result
 import ParseInt
 
 
-{-| Escapes characters that could be used to inject XSS vectors.
-At the moment we escape &, <, >, ", ', `, , !, @, $, %, (, ), =, +, {, }, [ and ]
+{-| Escapes a string converting characters that could be used to inject XSS
+vectors (http://wonko.com/post/html-escaping). At the moment we escape &, <, >,
+", ', `, , !, @, $, %, (, ), =, +, {, }, [ and ]
+
+for example
+
+escape "&<>\"" == "&amp;&lt;&gt;&quot;"
 -}
 escape : String -> String
 escape = convert escapeChars
 
 
-{-| Converts all named and numeric character references (e.g. &gt;, &#62;, &x3e;)
-to the corresponding unicode characters.
+{-| Unescapes a string, converting all named and numeric character references
+(e.g. &gt;, &#62;, &x3e;) to their corresponding unicode characters.
+
+for example
+
+unescape "&quot;&amp;&lt;&gt;" == "\"&<>"
 -}
 unescape : String -> String
 unescape = convert unescapeChars
 
 
+{- Helper function that applies a converting function to a string as a list of
+characters
+-}
 convert : ( List Char -> List Char ) -> String -> String
 convert convertChars string = string
     |> String.toList
@@ -37,16 +49,19 @@ convert convertChars string = string
     |> String.concat
 
 
+{- escapes the characters one by one -}
 escapeChars : List Char -> List Char
 escapeChars list = list
     |> List.map escapeChar
     |> List.concat
 
 
+{- function that actually performs the escaping of a single character -}
 escapeChar : Char -> List Char
 escapeChar char = Maybe.withDefault [ char ] ( Dict.get char escapeDictionary )
 
 
+{- dictionary that keeps track of the characters that need to be escaped -}
 escapeDictionary : Dict.Dict Char ( List Char )
 escapeDictionary =
     Dict.fromList <| List.map ( \( char, string ) -> ( char, String.toList string ))
@@ -72,14 +87,19 @@ escapeDictionary =
         ]
 
 
+{- unescapes the characters one by one -}
 unescapeChars : List Char -> List Char
 unescapeChars list = parser list [] []
 
 
-{- first parameter: list of characters to parsed
-second parameter: list of characters that are on hold to create the next character
-third parameter: list of characters already parsed
-return value: parsed list of characters
+{- recursive function that perform the parsing of a list of characters, keeping
+track of what still need to be parsed, what constitutes the list of characters
+considered for the unencoding, and what has already been parsed
+
+@par list of characters to parsed
+@par list of characters that are on hold to create the next character
+@par list of characters already parsed
+@ret parsed list of characters
 -}
 parser : List Char -> List Char -> List Char -> List Char
 parser charsToBeParsed charsOnParsing charsParsed =
@@ -96,6 +116,10 @@ parser charsToBeParsed charsOnParsing charsParsed =
                 parser tail [] ( List.append charsParsed [ head ])
 
 
+{- unencodes the next char considering what other characters are expecting to be
+parsed.
+At the moment called only when post is equal to ';'
+-}
 unicodeConverter : Char -> List Char -> List Char
 unicodeConverter post list =
     case list of
@@ -104,9 +128,15 @@ unicodeConverter post list =
             noAmpUnicodeConverter head post tail
 
 
-{- first parameter: character to prepend if the conversion is not possible
-second parameter : character to append if the conversion is not possible
-third parameter: list of characters to convert
+{- unencodes the next char considering what other characters are expecting to be
+parsed, isolating the first of these characters
+At the moment called with pre = '&' and post = ';', to delimitate an encoded
+character
+
+@par character to prepend if the conversion is not possible
+@par character to append if the conversion is not possible
+@par list of characters to convert
+@ret parsed list of characters
 -}
 noAmpUnicodeConverter : Char -> Char -> List Char -> List Char
 noAmpUnicodeConverter pre post list =
@@ -116,6 +146,13 @@ noAmpUnicodeConverter pre post list =
         head::tail -> convertFriendlyCode [ pre ] [ post ] ( head::tail )
 
 
+{- unencodes a list of characters representing a numerically encoded character
+
+@par list of characters to prepend if the conversion is not possible
+@par list of characters to append if the conversion is not possible
+@par list of characters to convert
+@ret parsed list of characters
+-}
 convertNumericalCode : List Char -> List Char -> List Char -> List Char
 convertNumericalCode pre post list =
     case list of
@@ -123,7 +160,7 @@ convertNumericalCode pre post list =
         'x'::tail -> convertHexadecimalCode ( List.append pre ['x']) post tail
         list -> convertDecimalCode pre post list
 
-
+{- helper function to create unescaping functions -}
 convertCode : ( String -> Maybe a ) -> ( a -> List Char ) -> List Char -> List Char -> List Char -> List Char
 convertCode mayber lister pre post list =
     let
@@ -134,25 +171,32 @@ convertCode mayber lister pre post list =
             Nothing -> List.concat [ pre, list, post ]
             Just something -> lister something
 
-
+{- unencodes a list of characters representing a hexadecimally encoded character -}
 convertHexadecimalCode : List Char -> List Char -> List Char -> List Char
 convertHexadecimalCode = convertCode ( ParseInt.parseIntHex >> Result.toMaybe ) ( \int -> [ Char.fromCode int ])
 
 
+{- unencodes a list of characters representing a decimally encoded character -}
 convertDecimalCode : List Char -> List Char -> List Char -> List Char
 convertDecimalCode =
     convertCode ( String.toInt >> Result.toMaybe ) ( \int -> [ Char.fromCode int ])
 
 
+{- unencodes a list of characters representing a friendly encoded character -}
 convertFriendlyCode : List Char -> List Char -> List Char -> List Char
 convertFriendlyCode =
     convertCode convertFriendlyCodeToChar ( \char -> [ char ])
 
 
+{- unencodes a string looking in the friendlyConverterDictionary -}
 convertFriendlyCodeToChar : String -> Maybe Char
 convertFriendlyCodeToChar string = Dict.get string friendlyConverterDictionary
 
 
+{- dictionary to keep track of the sequence of characters that represent a
+friendly html encoded character
+-}
+friendlyConverterDictionary : Dict.Dict String Char
 friendlyConverterDictionary =
     Dict.fromList <| List.map ( \( a, b ) -> ( a, Char.fromCode b ))
         [ ( "quot", 34 )
