@@ -1,6 +1,5 @@
 import String
-import Task
-import Console
+import Html exposing (Html, text)
 import ElmTest exposing (..)
 
 import ElmEscapeHtml exposing (escape, unescape)
@@ -47,6 +46,6 @@ tests =
         ]
 
 
-port runner : Signal (Task.Task x ())
-port runner =
-    Console.run (consoleRunner tests)
+main : Html ()
+main =
+    text ( stringRunner tests )

@@ -1,4 +1,4 @@
-module ElmEscapeHtml (escape, unescape) where
+module ElmEscapeHtml exposing (escape, unescape)
 
 {-| This library allows to escape html string and unescape named and numeric
 character references (e.g. &gt;, &#62;, &x3e;) to the corresponding unicode
