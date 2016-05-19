@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/marcosh/elm-html-to-unicode.svg?branch=master)](https://travis-ci.org/marcosh/elm-html-to-unicode)
+
 # elm-html-to-unicode
 This library allows to escape html string and unescape named and numeric
 character references (e.g. &gt;, &#62;, &x3e;) to the corresponding unicode

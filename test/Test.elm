@@ -1,5 +1,4 @@
 import String
-import Html exposing (Html, text)
 import ElmTest exposing (..)
 
 import ElmEscapeHtml exposing (escape, unescape)
@@ -46,6 +45,6 @@ tests =
         ]
 
 
-main : Html ()
+main : Program Never
 main =
-    text ( stringRunner tests )
+    runSuite tests
