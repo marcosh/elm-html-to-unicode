@@ -1,5 +1,7 @@
 language: haskell
 install:
+  - nvm install 7.0.0
+  - nvm use 7.0.0
   - npm install -g elm elm-test
   - elm-package install -y
 script: elm test
