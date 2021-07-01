@@ -3,7 +3,7 @@
     "name": "marcosh/elm-html-to-unicode",
     "summary": "elm library to escape and unescape html",
     "license": "MIT",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "exposed-modules": [
         "ElmEscapeHtml"
     ],
